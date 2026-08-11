@@ -1,0 +1,153 @@
+// Prisma schema — Previsão de Vendas (SalesAZB)
+// Documentação: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  SAM
+}
+
+enum Fase {
+  SE
+  MM
+}
+
+// Usuário com login (e-mail @dominio permitido + senha). SAM liga a conta
+// ao samName usado na planilha mestre — é o que hoje era um dropdown livre.
+model User {
+  id                 String   @id @default(cuid())
+  name               String
+  email              String   @unique
+  passwordHash       String
+  role               Role     @default(SAM)
+  samName            String?
+  // true quando a senha foi definida por um admin (na criação da conta) —
+  // força a troca no primeiro login. false para quem escolheu a própria
+  // senha (setup inicial do 1º admin, ou depois de trocar).
+  mustChangePassword Boolean  @default(false)
+  createdAt          DateTime @default(now())
+}
+
+// Linha da planilha mestre (CNPJ x SAM x Cliente x SKU). Substitui o
+// MASTER_SEED/MASTER_ALL embutido no HTML original.
+//
+// `ordem` guarda a posição original da linha na planilha importada. É
+// OBRIGATÓRIO ordenar por ela em toda leitura que alimenta a exportação: o
+// dashboard antigo iterava o array MASTER_ALL, então a planilha gerada saía
+// linha a linha na mesma ordem do arquivo original. Sem ORDER BY o Postgres
+// devolve em ordem arbitrária e a planilha final sai embaralhada.
+model MasterRow {
+  id      String @id @default(cuid())
+  ordem   Int
+  cnpj    String
+  sam     String
+  cliente String
+  grupo   String @default("")
+  uf      String
+  sku     String
+  sap     String @default("")
+
+  @@index([ordem])
+  @@index([sam, ordem])
+  @@index([sam, sku, ordem])
+}
+
+// Previsão lançada por um SAM, para uma linha (cnpj|sku|sap) num mês.
+// rowKey replica a função rowKey() do dashboard original.
+model ForecastLine {
+  id        String   @id @default(cuid())
+  sam       String
+  mes       String // formato YYYYMM
+  rowKey    String // cnpj|sku|sap
+  se        Int      @default(0)
+  riscoSE   String   @default("Médio")
+  mm        Int      @default(0)
+  riscoMM   String   @default("Médio")
+  updatedAt DateTime @updatedAt
+
+  @@unique([sam, mes, rowKey])
+  @@index([sam, mes])
+}
+
+// Status de conclusão da previsão de um SAM num mês. SE e MM são concluídos
+// de forma INDEPENDENTE: o relatório SE libera quando todos concluem o SE, e o
+// MM quando todos concluem o MM (mesma regra do dashboard original).
+model ForecastStatus {
+  id          String    @id @default(cuid())
+  sam         String
+  mes         String
+  concluidoSE Boolean   @default(false)
+  emSE        DateTime?
+  concluidoMM Boolean   @default(false)
+  emMM        DateTime?
+
+  @@unique([sam, mes])
+}
+
+// Confirmação de faturamento: para cada linha com MM previsto, o SAM informa
+// se foi faturado, não faturado, ou faturado parcialmente (com a quantidade).
+model FaturamentoLine {
+  id         String        @id @default(cuid())
+  sam        String
+  mes        String
+  rowKey     String // cnpj|sku|sap
+  status     FaturaStatus?
+  quantidade Int           @default(0)
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([sam, mes, rowKey])
+  @@index([sam, mes])
+}
+
+enum FaturaStatus {
+  FATURADO
+  NAO_FATURADO
+  FATURADO_PARCIALMENTE
+}
+
+// Status de conclusão da confirmação de faturamento de um SAM num mês.
+model FaturamentoStatus {
+  id        String    @id @default(cuid())
+  sam       String
+  mes       String
+  concluido Boolean   @default(false)
+  em        DateTime?
+
+  @@unique([sam, mes])
+}
+
+// Configuração global única (mês vigente para previsão e etapa ativa SE/MM).
+model AppSettings {
+  id          Int    @id @default(1)
+  mesVigente  String
+  faseAtiva   Fase   @default(SE)
+}
+
+// Tipo do relatório gerado: SE e MM são os oficiais (com trava de conclusão);
+// PARCIAL é a prévia, que pode ser gerada a qualquer momento.
+enum TipoRelatorio {
+  SE
+  MM
+  PARCIAL
+}
+
+// Histórico de planilhas .xlsx geradas.
+model GeneratedFile {
+  id        String        @id @default(cuid())
+  mes       String
+  tipo      TipoRelatorio
+  filename  String
+  data      Bytes
+  geradoEm  DateTime      @default(now())
+  tamanhoKB Int
+
+  @@unique([mes, tipo])
+}
