@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Manual do SAM — Previsão de Vendas por Conta</title>
+<style>
+  :root{
+    --ink:#4A0030; --ink-soft:#8A5D71; --line:#EAD9E0; --paper:#FFFFFF;
+    --accent:#A20152; --accent-soft:#F3D9E6; --gold:#FFAD01; --gold-soft:#FFF6E0;
+    --green:#137A45; --green-soft:#E4F7EC; --amber-soft:#FFF1D2; --amber-ink:#8A6103;
+  }
+  @page { size: A4; margin: 16mm 14mm 18mm 14mm; }
+  * { box-sizing: border-box; }
+  body{
+    margin:0; font-family:"Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color:var(--ink); font-size:10.5pt; line-height:1.55; background:#fff;
+  }
+  h1,h2,h3{ line-height:1.2; margin:0; }
+
+  /* ---------- capa ---------- */
+  /* A área útil da página A4 com as margens de impressão é ~267mm; a capa fica
+     bem abaixo disso para não transbordar e gerar uma página em branco. */
+  .capa{
+    height:225mm; display:flex; flex-direction:column; justify-content:center;
+    page-break-after:always; padding:0 6mm; overflow:hidden;
+  }
+  .capa .tag{
+    font-size:9pt; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--accent); font-weight:700; margin-bottom:10mm;
+  }
+  .capa h1{ font-size:34pt; font-weight:700; letter-spacing:-.5pt; }
+  .capa .sub{ font-size:14pt; color:var(--ink-soft); margin-top:5mm; }
+  .capa .barra{ height:5px; width:70mm; background:var(--accent); margin:10mm 0; border-radius:3px; }
+  .capa .meta{ font-size:9.5pt; color:var(--ink-soft); margin-top:14mm; }
+  .capa .destaque{
+    background:var(--accent-soft); border-radius:8px; padding:7mm 8mm; margin-top:12mm;
+    font-size:10.5pt;
+  }
+
+  /* ---------- sumário ---------- */
+  .sumario{ page-break-after:always; }
+  .sumario ol{ list-style:none; padding:0; margin:8mm 0 0 0; counter-reset:s; }
+  .sumario li{
+    counter-increment:s; padding:3.2mm 0; border-bottom:1px solid var(--line);
+    display:flex; align-items:baseline; gap:4mm; font-size:11pt;
+  }
+  .sumario li::before{
+    content:counter(s); color:#fff; background:var(--ink); font-size:8.5pt; font-weight:700;
+    min-width:6.5mm; height:6.5mm; border-radius:50%; display:inline-flex;
+    align-items:center; justify-content:center; flex:none;
+  }
+  .sumario li .desc{ color:var(--ink-soft); font-size:9.5pt; display:block; margin-top:.8mm; }
+
+  /* ---------- seções ---------- */
+  section{ page-break-before:always; }
+  .titulo-secao{
+    display:flex; align-items:center; gap:4mm;
+    border-bottom:2px solid var(--accent); padding-bottom:3mm; margin-bottom:6mm;
+  }
+  .titulo-secao .n{
+    background:var(--accent); color:#fff; font-size:11pt; font-weight:700;
+    width:9mm; height:9mm; border-radius:50%; display:flex; align-items:center;
+    justify-content:center; flex:none;
+  }
+  .titulo-secao h2{ font-size:17pt; }
+  h3{ font-size:12pt; margin:7mm 0 2.5mm 0; color:var(--accent); }
+  p{ margin:0 0 3.5mm 0; }
+
+  figure{ margin:5mm 0 6mm 0; page-break-inside:avoid; }
+  figure img{
+    width:100%; border:1px solid var(--line); border-radius:6px; display:block;
+  }
+  /* A captura do login é um cartão estreito — centralizada e menor fica melhor. */
+  figure.estreita img{ width:46%; margin:0 auto; }
+  figcaption{
+    font-size:8.5pt; color:var(--ink-soft); margin-top:2mm; text-align:center; font-style:italic;
+  }
+
+  ol.passos{ margin:0 0 4mm 0; padding-left:0; list-style:none; counter-reset:p; }
+  ol.passos li{
+    counter-increment:p; position:relative; padding-left:9mm; margin-bottom:3mm;
+  }
+  ol.passos li::before{
+    content:counter(p); position:absolute; left:0; top:.2mm;
+    background:var(--gold); color:var(--ink); font-size:8pt; font-weight:700;
+    width:6mm; height:6mm; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  }
+  ul{ margin:0 0 4mm 0; padding-left:5mm; }
+  li{ margin-bottom:1.6mm; }
+
+  .nota, .aviso, .dica{
+    border-radius:6px; padding:4mm 5mm; margin:4mm 0; font-size:9.8pt;
+    page-break-inside:avoid;
+  }
+  .nota{ background:var(--accent-soft); }
+  .aviso{ background:var(--amber-soft); border-left:4px solid var(--gold); }
+  .dica{ background:var(--green-soft); border-left:4px solid var(--green); }
+  .nota strong, .aviso strong, .dica strong{ display:block; margin-bottom:1.2mm; }
+
+  table{ width:100%; border-collapse:collapse; margin:4mm 0; font-size:9.5pt; page-break-inside:avoid; }
+  th{
+    background:var(--ink); color:#fff; text-align:left; padding:2.5mm 3mm;
+    font-size:8.5pt; letter-spacing:.05em; text-transform:uppercase;
+  }
+  td{ padding:2.5mm 3mm; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:nth-child(even) td{ background:#FDF9FB; }
+  .termo{ font-weight:700; color:var(--accent); white-space:nowrap; }
+
+  .faq-item{ margin-bottom:5mm; page-break-inside:avoid; }
+  .faq-p{
+    font-weight:700; color:var(--ink); margin-bottom:1.5mm; display:flex; gap:2.5mm;
+  }
+  .faq-p::before{ content:"P."; color:var(--accent); flex:none; }
+  .faq-r{ padding-left:6.5mm; color:#3a2030; }
+
+  .rodape-doc{
+    margin-top:10mm; padding-top:4mm; border-top:1px solid var(--line);
+    font-size:8.5pt; color:var(--ink-soft); text-align:center;
+  }
+  .badge{
+    display:inline-block; background:var(--accent-soft); color:var(--accent);
+    border-radius:20px; padding:.6mm 2.5mm; font-size:8.5pt; font-weight:700;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ CAPA ============ -->
+<div class="capa">
+  <div class="tag">AstraZeneca · Operações Comerciais</div>
+  <h1>Manual do SAM</h1>
+  <div class="sub">Dashboard de Previsão de Vendas por Conta</div>
+  <div class="barra"></div>
+  <p style="font-size:11.5pt; max-width:150mm;">
+    Guia prático para lançar a previsão do mês, confirmar o faturamento e manter
+    a calibração em dia. Feito para consulta rápida — cada etapa tem o passo a
+    passo e a tela correspondente.
+  </p>
+  <div class="destaque">
+    <strong>Em uma frase:</strong>
+    todo mês você informa <em>quanto pretende vender</em> (SE), <em>ajusta esse número</em> (MM),
+    confirma <em>o que foi efetivamente faturado</em> e mantém atualizado <em>o que já está
+    em casa mas ainda não foi faturado</em> (calibração).
+  </div>
+  <div class="meta">
+    Documento de apoio ao usuário · Versão 1.0
+  </div>
+</div>
+
+<!-- ============ SUMÁRIO ============ -->
+<div class="sumario">
+  <div class="titulo-secao" style="border:0; margin-bottom:2mm;">
+    <h2 style="font-size:20pt;">Sumário</h2>
+  </div>
+  <ol>
+    <li><div><strong>Primeiro acesso</strong><span class="desc">Entrar no sistema e definir a sua senha</span></div></li>
+    <li><div><strong>Os termos que você vai ver</strong><span class="desc">SE, MM, Faturado, A faturar, competência e risco</span></div></li>
+    <li><div><strong>Lançar a previsão</strong><span class="desc">Escolher o medicamento, a conta e informar a quantidade</span></div></li>
+    <li><div><strong>Conferir antes de finalizar</strong><span class="desc">Revisar tudo o que foi lançado em uma tabela só</span></div></li>
+    <li><div><strong>Finalizar a etapa</strong><span class="desc">Marcar sua previsão como concluída</span></div></li>
+    <li><div><strong>Confirmação de faturamento</strong><span class="desc">Informar o que realmente foi faturado</span></div></li>
+    <li><div><strong>Calibração</strong><span class="desc">Pedidos em casa que ainda não foram faturados</span></div></li>
+    <li><div><strong>Painel consolidado e planilha prévia</strong><span class="desc">Acompanhar o time e baixar a prévia</span></div></li>
+    <li><div><strong>Perguntas frequentes</strong><span class="desc">As dúvidas mais comuns, respondidas</span></div></li>
+  </ol>
+
+  <div class="nota" style="margin-top:10mm;">
+    <strong>Onde eu encontro cada coisa?</strong>
+    O menu fica sempre à esquerda, com quatro opções: <em>Lançamento por conta</em>,
+    <em>Confirmação de faturamento</em>, <em>Calibração</em> e <em>Painel consolidado</em>.
+    Você pode ir e voltar entre elas quando quiser.
+  </div>
+</div>
+
+<!-- ============ 1. PRIMEIRO ACESSO ============ -->
+<section>
+  <div class="titulo-secao"><div class="n">1</div><h2>Primeiro acesso</h2></div>
+
+  <p>
+    O acesso é individual e usa o seu e-mail corporativo. Não existe cadastro
+    aberto: a sua conta é criada por um administrador, que te envia uma
+    <strong>senha provisória</strong>.
+  </p>
+
+  <ol class="passos">
+    <li>Abra o endereço do dashboard no navegador.</li>
+    <li>Informe o seu <strong>e-mail @astrazeneca.com</strong> e a senha provisória que você recebeu.</li>
+    <li>Clique em <strong>Entrar</strong>.</li>
+    <li>Na primeira vez, o sistema pede que você <strong>defina a sua própria senha</strong>. Escolha uma senha com pelo menos 8 caracteres e confirme.</li>
+  </ol>
+
+  <figure class="estreita">
+    <img src="img/01-login.png" alt="Tela de login do dashboard">
+    <figcaption>Tela de entrada — e-mail corporativo e senha</figcaption>
+  </figure>
+
+  <div class="aviso">
+    <strong>A senha provisória serve uma vez só</strong>
+    Depois que você definir a sua senha, a provisória deixa de valer. Se esquecer
+    a senha, peça a um administrador para redefinir — ele gera uma nova provisória
+    e você escolhe outra no próximo acesso.
+  </div>
+
+  <div class="nota">
+    <strong>Você só vê o que é seu</strong>
+    Ao entrar, o sistema já sabe qual SAM você é. Você não precisa (nem consegue)
+    escolher outro SAM: as telas abrem direto na sua carteira de contas.
+  </div>
+</section>
+
+<!-- ============ 2. TERMOS ============ -->
+<section>
+  <div class="titulo-secao"><div class="n">2</div><h2>Os termos que você vai ver</h2></div>
+
+  <p>São poucos termos, e eles se repetem em todas as telas. Vale ler uma vez com calma:</p>
+
+  <table>
+    <thead>
+      <tr><th style="width:32mm;">Termo</th><th>O que significa</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="termo">Competência</td>
+        <td>O mês ao qual a previsão se refere, no formato AAAAMM (ex.: <em>202608</em> = agosto de 2026). Quem define o mês aberto é o administrador — você sempre lança no mês que estiver vigente.</td>
+      </tr>
+      <tr>
+        <td class="termo">SE</td>
+        <td><strong>Previsão inicial.</strong> Quanto você acredita que vai vender daquele produto, para aquela conta, no mês. É o primeiro número que você informa.</td>
+      </tr>
+      <tr>
+        <td class="termo">MM</td>
+        <td><strong>Ajuste do meio do mês</strong> (por volta do dia 15). É a chance de corrigir a previsão inicial com o que você já sabe de concreto.</td>
+      </tr>
+      <tr>
+        <td class="termo">Risco</td>
+        <td>O seu grau de confiança naquele número: <strong>Baixo</strong>, <strong>Médio</strong> ou <strong>Alto</strong>. Risco alto = mais incerteza de que a venda se concretize.</td>
+      </tr>
+      <tr>
+        <td class="termo">Faturado</td>
+        <td>O que efetivamente foi faturado. Informado na etapa de <em>Confirmação de faturamento</em>.</td>
+      </tr>
+      <tr>
+        <td class="termo">A faturar</td>
+        <td>Pedido que <strong>já está em casa</strong> (o cliente já colocou) mas <strong>ainda não foi faturado</strong>. Informado na <em>Calibração</em>.</td>
+      </tr>
+      <tr>
+        <td class="termo">Etapa ativa</td>
+        <td>Qual campo está liberado no momento: SE ou MM. Aparece no quadro à esquerda. Quem controla isso é o administrador.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Como as etapas se encaixam no mês</h3>
+  <ol class="passos">
+    <li><strong>Início do mês</strong> — você lança a previsão <span class="badge">SE</span> e finaliza.</li>
+    <li><strong>Por volta do dia 15</strong> — o administrador libera o <span class="badge">MM</span>; você ajusta e finaliza de novo.</li>
+    <li><strong>Ao longo do mês</strong> — mantém a <span class="badge">Calibração</span> atualizada com o que está em casa.</li>
+    <li><strong>Quando faturar</strong> — registra na <span class="badge">Confirmação de faturamento</span>.</li>
+  </ol>
+
+  <div class="dica">
+    <strong>Por que o campo MM às vezes fica cinza?</strong>
+    Porque a etapa ativa é SE. O campo MM só abre quando o administrador liberar a
+    etapa de ajuste. Isso é proposital: evita que a previsão do mês seja alterada
+    fora da janela combinada.
+  </div>
+</section>
+
+<!-- ============ 3. LANÇAR PREVISÃO ============ -->
+<section>
+  <div class="titulo-secao"><div class="n">3</div><h2>Lançar a previsão</h2></div>
+
+  <p>
+    Essa é a tela onde você passa a maior parte do tempo. Ela funciona em três
+    passos, mostrados nas bolinhas no topo: <em>Medicamento e conta</em> →
+    <em>Conferência</em> → <em>Finalizar</em>.
+  </p>
+
+  <ol class="passos">
+    <li>No menu à esquerda, clique em <strong>Lançamento por conta</strong>.</li>
+    <li>Em <strong>Selecione o medicamento</strong>, escolha o produto na lista.</li>
+    <li>Na coluna do meio, clique na <strong>conta</strong> (instituição) que você quer previsionar. Use o campo de busca para achar pelo nome ou pelo CNPJ.</li>
+    <li>À direita, digite a <strong>Quantidade SE</strong> e escolha o <strong>Risco</strong>.</li>
+    <li>Clique em <strong>Salvar rascunho</strong> sempre que quiser guardar o progresso.</li>
+    <li>Repita para as demais contas e medicamentos.</li>
+  </ol>
+
+  <figure>
+    <img src="img/02-lancamento.png" alt="Tela de lançamento de previsão">
+    <figcaption>Lançamento — medicamento à esquerda, contas no meio, quantidade e risco à direita</figcaption>
+  </figure>
+
+  <h3>Detalhes que ajudam</h3>
+  <ul>
+    <li>O <strong>ponto dourado</strong> ao lado da conta indica que já existe previsão lançada ali. Serve para você achar rapidamente o que ainda falta.</li>
+    <li>Se a <strong>mesma conta aparecer duas vezes</strong> no mesmo medicamento, olhe o <strong>código SAP</strong> embaixo do CNPJ: são materiais diferentes (por exemplo, código antigo e código novo), cada um com previsão própria.</li>
+    <li>O rodapé mostra <em>"Alterações não salvas"</em> quando há algo pendente de gravação.</li>
+  </ul>
+
+  <div class="aviso">
+    <strong>Salve antes de sair</strong>
+    Trocar de tela sem salvar faz você perder o que digitou desde o último
+    salvamento. Na dúvida, clique em <strong>Salvar rascunho</strong>.
+  </div>
+</section>
+
+<!-- ============ 4. CONFERÊNCIA ============ -->
+<section>
+  <div class="titulo-secao"><div class="n">4</div><h2>Conferir antes de finalizar</h2></div>
+
+  <p>
+    Depois de lançar, clique em <strong>Ir para conferência →</strong>. Essa tela
+    junta tudo o que você preencheu em uma tabela única, para você bater o olho
+    antes de fechar o mês.
+  </p>
+
+  <figure>
+    <img src="img/03-conferencia.png" alt="Tela de conferência da previsão">
+    <figcaption>Conferência — todas as linhas lançadas, com SE, MM e os respectivos riscos</figcaption>
+  </figure>
+
+  <ul>
+    <li>Aparecem <strong>apenas as contas com previsão lançada</strong> (SE ou MM maior que zero). Se faltou alguma, volte e preencha.</li>
+    <li>Use a busca para localizar uma instituição específica.</li>
+    <li>O botão <strong>Editar</strong> ao final de cada linha te leva direto àquela conta para corrigir.</li>
+    <li><strong>Baixar planilha preliminar</strong> gera um Excel só com a sua previsão — útil para conferir com calma ou guardar.</li>
+  </ul>
+
+  <div class="dica">
+    <strong>Confira os totais</strong>
+    É mais fácil perceber um erro de digitação (um zero a mais, por exemplo)
+    olhando a lista completa aqui do que conta por conta na tela anterior.
+  </div>
+</section>
+
+<!-- ============ 5. FINALIZAR ============ -->
+<section>
+  <div class="titulo-secao"><div class="n">5</div><h2>Finalizar a etapa</h2></div>
+
+  <p>
+    O último passo mostra um resumo com o total de contas previsionadas e as
+    somas de SE e MM. É aqui que você marca a sua parte como concluída.
+  </p>
+
+  <figure>
+    <img src="img/04-finalizar.png" alt="Tela de finalização da previsão">
+    <figcaption>Finalizar — resumo dos totais e situação de cada etapa</figcaption>
+  </figure>
+
+  <ol class="passos">
+    <li>Revise os números do resumo.</li>
+    <li>Clique em <strong>Finalizar etapa SE</strong> (ou <strong>MM</strong>, conforme a etapa ativa).</li>
+    <li>Pronto: no painel consolidado, você aparece como concluído.</li>
+  </ol>
+
+  <div class="nota">
+    <strong>Finalizei e preciso mudar. E agora?</strong>
+    Sem problema: clique em <strong>Reabrir etapa</strong>, faça o ajuste e finalize
+    de novo. Só lembre de finalizar outra vez — enquanto estiver reaberta, você
+    consta como pendente.
+  </div>
+
+  <div class="aviso">
+    <strong>SE e MM são concluídos separadamente</strong>
+    Finalizar o SE não conclui o MM. Quando o administrador liberar a etapa de
+    ajuste, você precisa voltar aqui e finalizar o MM também.
+  </div>
+</section>
+
+<!-- ============ 6. FATURAMENTO ============ -->
+<section>
+  <div class="titulo-secao"><div class="n">6</div><h2>Confirmação de faturamento</h2></div>
+
+  <p>
+    Aqui você informa o que <strong>realmente foi faturado</strong> daquilo que
+    tinha sido previsto em MM. A tela lista automaticamente só os itens com MM
+    maior que zero — é o que precisa de confirmação.
+  </p>
+
+  <figure>
+    <img src="img/05-faturamento.png" alt="Tela de confirmação de faturamento">
+    <figcaption>Confirmação de faturamento — status e quantidade por linha</figcaption>
+  </figure>
+
+  <p>Para cada linha, escolha uma das três opções:</p>
+  <table>
+    <thead>
+      <tr><th style="width:42mm;">Status</th><th>Quando usar</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="termo">Faturado</td><td>Saiu tudo o que estava previsto. O sistema considera a quantidade cheia do MM.</td></tr>
+      <tr><td class="termo">Não faturado</td><td>Não saiu nada. Conta como zero.</td></tr>
+      <tr><td class="termo">Faturado parcialmente</td><td>Saiu parte. O campo de quantidade abre para você digitar quanto foi.</td></tr>
+    </tbody>
+  </table>
+
+  <ol class="passos">
+    <li>Escolha o status de cada linha.</li>
+    <li>Se for parcial, informe a quantidade.</li>
+    <li>Clique em <strong>Salvar</strong>.</li>
+    <li>Ao terminar tudo, clique em <strong>Finalizar confirmação de faturamento</strong>.</li>
+  </ol>
+
+  <div class="dica">
+    <strong>Acompanhe pelos cartões</strong>
+    No topo, <em>Itens pendentes</em> mostra quantas linhas ainda estão sem status,
+    e <em>Total confirmado</em> soma o que você já registrou.
+  </div>
+</section>
+
+<!-- ============ 7. CALIBRAÇÃO ============ -->
+<section>
+  <div class="titulo-secao"><div class="n">7</div><h2>Calibração</h2></div>
+
+  <p>
+    A calibração é onde você informa os pedidos que <strong>já estão em casa mas
+    ainda não foram faturados</strong>. Diferente das outras, essa etapa fica
+    <strong>aberta o mês inteiro</strong>: não tem botão de finalizar, e você pode
+    ajustar quando quiser.
+  </p>
+
+  <figure>
+    <img src="img/06-calibracao.png" alt="Tela de calibração">
+    <figcaption>Calibração — SE e MM à vista, quantidade em casa à direita e o formulário de pedido manual acima</figcaption>
+  </figure>
+
+  <h3>Pedidos das suas contas</h3>
+  <ol class="passos">
+    <li>A tabela já traz as contas com previsão lançada, mostrando SE e MM para referência.</li>
+    <li>Preencha a <strong>Qtd. em casa (a faturar)</strong> de cada linha que tiver pedido colocado.</li>
+    <li>Clique em <strong>Salvar calibração</strong>.</li>
+  </ol>
+
+  <h3>Pedido de uma conta que não é sua</h3>
+  <p>
+    Se chegou um pedido de uma instituição que não está no seu painel, use o
+    formulário <strong>Adicionar pedido manualmente</strong>:
+  </p>
+  <ol class="passos">
+    <li>Digite o <strong>nome da conta</strong> livremente.</li>
+    <li>Escolha o <strong>produto</strong> na lista (é ele que classifica o pedido na planilha final).</li>
+    <li>Informe a <strong>UF</strong> (opcional) e a <strong>quantidade em casa</strong>.</li>
+    <li>Clique em <strong>Adicionar pedido</strong> e depois em <strong>Salvar calibração</strong>.</li>
+  </ol>
+
+  <div class="nota">
+    <strong>Para onde vai esse número?</strong>
+    A quantidade informada na calibração alimenta a coluna <strong>A faturar</strong>
+    da planilha final. Os pedidos manuais ainda aparecem numa aba própria,
+    chamada <em>CALIBRAÇÃO</em>, com o seu nome, o produto, a quantidade, a conta e o estado.
+  </div>
+
+  <div class="aviso">
+    <strong>Não confunda com o faturamento</strong>
+    Calibração = pedido em casa que <em>ainda não</em> foi faturado.
+    Confirmação de faturamento = o que <em>já</em> foi faturado. Um pedido normalmente
+    passa pela calibração primeiro e migra para o faturamento depois.
+  </div>
+</section>
+
+<!-- ============ 8. CONSOLIDADO ============ -->
+<section>
+  <div class="titulo-secao"><div class="n">8</div><h2>Painel consolidado e planilha prévia</h2></div>
+
+  <p>
+    O painel consolidado mostra a situação de <strong>todo o time</strong>: quem já
+    concluiu SE, quem concluiu MM, os totais e o andamento da calibração e do
+    faturamento. Você acessa em modo de leitura — dá para acompanhar, não para editar.
+  </p>
+
+  <figure>
+    <img src="img/07-consolidado.png" alt="Painel consolidado">
+    <figcaption>Painel consolidado — situação de cada SAM e geração da planilha prévia</figcaption>
+  </figure>
+
+  <h3>Planilha prévia</h3>
+  <p>
+    O botão <strong>Gerar planilha prévia (parcial)</strong> baixa um Excel com tudo
+    o que o time computou <em>até aquele momento</em>. Pode ser gerada quantas vezes
+    você quiser, a qualquer hora. A planilha vem com cinco abas:
+  </p>
+  <table>
+    <thead><tr><th style="width:42mm;">Aba</th><th>O que traz</th></tr></thead>
+    <tbody>
+      <tr><td class="termo">202608</td><td>Todos os dados, linha a linha, na mesma ordem da planilha mestre</td></tr>
+      <tr><td class="termo">RESUMO</td><td>Totais por medicamento, no geral e por estado</td></tr>
+      <tr><td class="termo">RESUMO POR SAM</td><td>O mesmo, separado por SAM</td></tr>
+      <tr><td class="termo">CALIBRAÇÃO</td><td>Os pedidos lançados manualmente na calibração</td></tr>
+      <tr><td class="termo">CONSOLIDADO</td><td>Visão financeira do trimestre, por produto</td></tr>
+    </tbody>
+  </table>
+
+  <div class="nota">
+    <strong>E os relatórios oficiais?</strong>
+    Os relatórios <em>SE</em> e <em>MM</em> são gerados pelo administrador, e só depois
+    que <strong>todos</strong> os SAMs concluírem a etapa. Se você vir alguém pendente na
+    lista, é isso que está segurando o fechamento.
+  </div>
+</section>
+
+<!-- ============ 9. FAQ ============ -->
+<section>
+  <div class="titulo-secao"><div class="n">9</div><h2>Perguntas frequentes</h2></div>
+
+  <div class="faq-item">
+    <div class="faq-p">Esqueci minha senha. O que faço?</div>
+    <div class="faq-r">Peça a um administrador para redefinir. Ele gera uma senha provisória nova e, no próximo acesso, você escolhe a sua.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-p">O campo MM está cinza e não deixa digitar. Está com defeito?</div>
+    <div class="faq-r">Não. Significa que a etapa ativa é SE. O MM abre quando o administrador liberar a etapa de ajuste, normalmente por volta do dia 15.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-p">Posso mudar o mês da previsão?</div>
+    <div class="faq-r">Não. O mês vigente é definido pelo administrador e vale para todo o time — é o que garante que ninguém previsione o mês errado por engano.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-p">Já finalizei, mas preciso corrigir um número.</div>
+    <div class="faq-r">Vá até a etapa <em>Finalizar</em> e clique em <strong>Reabrir etapa</strong>. Corrija e finalize novamente — sem finalizar de novo, você segue como pendente.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-p">Não encontro uma conta na lista.</div>
+    <div class="faq-r">A lista mostra apenas as contas da sua carteira para o medicamento selecionado. Confirme se o medicamento certo está escolhido. Se a conta realmente não existir na base, fale com o administrador — ele atualiza a planilha mestre.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-p">A mesma instituição aparece duas vezes. Qual eu preencho?</div>
+    <div class="faq-r">As duas, se houver pedido nas duas. Repare no código SAP abaixo do CNPJ: são materiais diferentes, cada um com previsão própria.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-p">Qual a diferença entre calibração e confirmação de faturamento?</div>
+    <div class="faq-r">Calibração é o pedido que está em casa e <em>ainda não</em> foi faturado. Confirmação de faturamento é o que <em>já</em> foi faturado. Normalmente o pedido entra na calibração e depois migra para o faturamento.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-p">Preciso finalizar a calibração?</div>
+    <div class="faq-r">Não. Ela é contínua e fica aberta o mês inteiro. Vale sempre o que estiver salvo no momento em que a planilha for gerada — por isso é bom mantê-la em dia.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-p">Recebi um pedido de uma conta que não é minha. Onde lanço?</div>
+    <div class="faq-r">Na calibração, em <strong>Adicionar pedido manualmente</strong>. Você digita o nome da conta livremente e escolhe o produto na lista.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-p">Posso gerar a planilha final?</div>
+    <div class="faq-r">Você pode gerar a <strong>planilha prévia</strong>, com o que o time já computou. Os relatórios oficiais SE e MM são gerados pelo administrador, após todos concluírem a etapa.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-p">Consigo ver ou alterar a previsão de outro SAM?</div>
+    <div class="faq-r">Ver os totais dele no painel consolidado, sim. Alterar, não — cada SAM só edita a própria carteira.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-p">Perdi o que digitei ao trocar de tela.</div>
+    <div class="faq-r">O sistema avisa no rodapé quando há alterações não salvas. Clique em <strong>Salvar rascunho</strong> antes de mudar de tela ou fechar o navegador.</div>
+  </div>
+
+  <div class="rodape-doc">
+    Em caso de dúvida que não esteja aqui, procure o administrador do dashboard.
+  </div>
+</section>
+
+</body>
+</html>
