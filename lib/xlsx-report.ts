@@ -2,7 +2,7 @@
 //   1. <AAAAMM>        — dados linha a linha, na ordem exata da planilha mestre
 //   2. RESUMO          — consolidado por SKU (geral e por estado)
 //   3. RESUMO POR SAM  — o mesmo, quebrado por SAM
-//   4. CALIBRAÇÃO      — pedidos lançados manualmente na calibração
+//   4. CALIBRAÇÃO      — pedidos em casa a faturar (do painel + manuais)
 //   5. CONSOLIDADO     — visão financeira trimestral estilizada (Vendas Públicas)
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/prisma";
@@ -25,12 +25,14 @@ export type ForecastLineValue = { se: number; riscoSE: string; mm: number; risco
 
 const EMPTY_LINE: ForecastLineValue = { se: 0, riscoSE: "Médio", mm: 0, riscoMM: "Médio" };
 
-export type CalibracaoManual = {
+export type CalibracaoPedido = {
   sam: string;
   sku: string;
   cliente: string;
   uf: string;
   quantidade: number;
+  /** true = conta digitada pelo SAM; false = conta do painel dele (planilha mestre). */
+  manual: boolean;
 };
 
 export type MesData = {
@@ -40,9 +42,10 @@ export type MesData = {
   // por linha da planilha mestre, porque a calibração aceita pedidos manuais —
   // contas que não existem na mestre. O elo com o grupo é sempre o SKU.
   aFaturarPorGrupo: Map<string, number>;
-  // Só os pedidos MANUAIS da calibração — contas digitadas pelo SAM, que não
-  // existem na planilha mestre. Alimentam a aba CALIBRAÇÃO.
-  calibracaoManuais: CalibracaoManual[];
+  // TODOS os pedidos da calibração: tanto os lançados sobre as contas
+  // previsionadas do painel do SAM quanto os digitados manualmente por ele.
+  // Alimentam a aba CALIBRAÇÃO.
+  calibracaoPedidos: CalibracaoPedido[];
 };
 
 /**
@@ -84,14 +87,15 @@ export async function loadMesData(mes: string): Promise<MesData> {
     aFaturarPorGrupo.set(grupo, (aFaturarPorGrupo.get(grupo) ?? 0) + (c.quantidade || 0));
   }
 
-  const calibracaoManuais = calibracoes
-    .filter((c) => c.manual && !isHiddenSku(c.sku))
+  const calibracaoPedidos = calibracoes
+    .filter((c) => !isHiddenSku(c.sku))
     .map((c) => ({
       sam: c.sam,
       sku: c.sku,
       cliente: c.cliente,
       uf: c.uf,
       quantidade: c.quantidade,
+      manual: c.manual,
     }))
     .sort(
       (a, b) =>
@@ -100,7 +104,7 @@ export async function loadMesData(mes: string): Promise<MesData> {
         a.cliente.localeCompare(b.cliente, "pt-BR")
     );
 
-  return { forecast, faturamento, aFaturarPorGrupo, calibracaoManuais };
+  return { forecast, faturamento, aFaturarPorGrupo, calibracaoPedidos };
 }
 
 function lineOf(data: MesData, r: MasterRowLite): ForecastLineValue {
@@ -237,19 +241,27 @@ export function buildResumoPorSamRows(masterRows: MasterRowLite[], mes: string, 
 /* ---------------- ABA 4: CALIBRAÇÃO ---------------- */
 
 /**
- * Pedidos que o SAM lançou MANUALMENTE na calibração — contas que não existem
- * na planilha mestre. Os pedidos calibrados sobre linhas da mestre já aparecem
- * na aba de dados, então aqui só entram os manuais.
+ * TODOS os pedidos lançados na calibração — pedidos que já estão em casa mas
+ * ainda não foram faturados. Inclui tanto os informados sobre as contas
+ * previsionadas do painel do SAM quanto os que ele digitou manualmente
+ * (contas fora do painel). É a mesma soma que alimenta a coluna "A faturar"
+ * da aba CONSOLIDADO.
  */
 export function buildCalibracaoRows(mes: string, data: MesData) {
   const out: (string | number)[][] = [];
-  out.push(["CALIBRAÇÃO — PEDIDOS MANUAIS", "", "", "", ""]);
+  out.push(["CALIBRAÇÃO — PEDIDOS EM CASA A FATURAR", "", "", "", ""]);
   out.push([`Competência: ${mesLabel(mes)} (${mes})`, "", "", "", ""]);
   out.push(["", "", "", "", ""]);
   out.push(["SAM", "PRODUTO", "QUANTIDADE", "CONTA", "ESTADO"]);
 
-  for (const c of data.calibracaoManuais) {
+  for (const c of data.calibracaoPedidos) {
     out.push([c.sam, c.sku, c.quantidade, c.cliente, c.uf]);
+  }
+
+  if (data.calibracaoPedidos.length) {
+    const total = data.calibracaoPedidos.reduce((a, c) => a + (c.quantidade || 0), 0);
+    out.push(["", "", "", "", ""]);
+    out.push(["TOTAL", "", total, "", ""]);
   }
   return out;
 }

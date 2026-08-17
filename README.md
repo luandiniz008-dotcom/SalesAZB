@@ -28,7 +28,7 @@ Todo relatório sai com **quatro abas**:
 | `<AAAAMM>` | Dados linha a linha, **na ordem exata da planilha mestre** |
 | `RESUMO` | Consolidado por SKU — geral e por estado (SE / MM / Faturado) |
 | `RESUMO POR SAM` | O mesmo, quebrado por SAM × SKU × UF |
-| `CALIBRAÇÃO` | Pedidos lançados **manualmente** na calibração (SAM / produto / quantidade / conta / estado) |
+| `CALIBRAÇÃO` | **Todos** os pedidos em casa a faturar — do painel do SAM e os manuais (SAM / produto / quantidade / conta / estado) |
 | `CONSOLIDADO` | Visão financeira do trimestre (BU, NETPRICE, Budget/RBU2/SE/MM/Total em casa/A faturar/Faturado), estilizada como a planilha "Vendas Públicas" |
 
 Na aba `CONSOLIDADO` só **Budget e RBU2** ficam em branco (fundo amarelo claro)
