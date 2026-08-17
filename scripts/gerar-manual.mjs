@@ -13,7 +13,9 @@ import puppeteer from "puppeteer-core";
 const CHROME =
   process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const ENTRADA = path.join(process.cwd(), "docs", "manual", "manual-sam.html");
-const SAIDA = path.join(process.cwd(), "docs", "Manual-do-SAM.pdf");
+// Gera direto em public/: é de lá que o dashboard serve o manual aos usuários
+// (link na barra lateral). O proxy.ts cobre a rota, então exige login.
+const SAIDA = path.join(process.cwd(), "public", "manual-do-sam.pdf");
 
 async function main() {
   if (!fs.existsSync(ENTRADA)) throw new Error(`não encontrei ${ENTRADA}`);

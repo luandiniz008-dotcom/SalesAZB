@@ -113,6 +113,16 @@ export function Sidebar({ user }: { user: SessionUser }) {
         )}
       </nav>
 
+      {/* O manual fica em public/ e é servido pelo próprio app — o proxy.ts
+          cobre a rota, então só quem está logado consegue abrir. */}
+      <a className="manual-link" href="/manual-do-sam.pdf" target="_blank" rel="noopener noreferrer">
+        <span className="manual-icone" aria-hidden="true">?</span>
+        <span>
+          Manual do SAM
+          <span className="manual-sub">Como usar o dashboard · PDF</span>
+        </span>
+      </a>
+
       <div className="user-box">
         {user.email}
         <br />
