@@ -78,6 +78,32 @@ npm run db:seed             # importa a planilha mestre (prisma/seed-data.json)
 npm run dev
 ```
 
+Scripts auxiliares:
+
+```bash
+npm run db:seed-usuarios     # cria/atualiza as contas de acesso da equipe
+npm run db:limpar-pedidos    # zera previsões, faturamento, calibração e planilhas geradas
+```
+
+## Papéis
+
+| Ação | ADMIN | SAM |
+|---|---|---|
+| Lançar previsão (SE / MM) | de qualquer SAM | só a própria |
+| Confirmação de faturamento | de qualquer SAM | só a própria |
+| Calibração | de qualquer SAM | só a própria |
+| Gerar planilha prévia (PARCIAL) | sim | sim |
+| Gerar relatórios oficiais SE / MM | sim | não |
+| Painel consolidado | sim | sim (leitura) |
+| Definir mês vigente e etapa SE/MM | sim | não |
+| Liberar SE e MM juntos (exceção) | sim | não |
+| Importar planilha mestre | sim | não |
+| Gerenciar usuários | sim | não |
+
+O SAM entra direto na própria previsão — não existe seletor de outro SAM para
+ele. A trava da etapa também é aplicada no servidor: durante a etapa SE, um
+envio de MM vindo de um SAM é descartado.
+
 ## Contas de acesso
 
 **Não existe auto-cadastro.** A primeira conta é criada uma única vez em

@@ -61,7 +61,9 @@ export function Sidebar({ user }: { user: SessionUser }) {
       <div className="phase-box">
         <div className="ph">{phaseLabel}</div>
         <div className="desc">{phaseDesc}{freeEdit ? " Edição livre ativada — todos os campos estão liberados." : ""}</div>
-        {user.role === "SAM" && (
+        {/* Destravar SE e MM ao mesmo tempo é exceção de administrador: o SAM
+            preenche somente a etapa que o admin liberou em Configurações. */}
+        {user.role === "ADMIN" && (
           <div className="toggle-row">
             <input
               type="checkbox"

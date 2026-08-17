@@ -1,6 +1,5 @@
 // Planilha preliminar: só a previsão do próprio SAM (ou de um SAM escolhido
 // pelo admin), sem gate e sem entrar no histórico do painel consolidado.
-import { prisma } from "@/lib/prisma";
 import { apiUser } from "@/lib/dal";
 import { buildPreliminarWorkbook } from "@/lib/xlsx-report";
 import { samSlug } from "@/lib/sam-slug";
@@ -21,11 +20,7 @@ export async function GET(req: Request) {
   }
 
   // Mesma regra do relatório final: ordem original da planilha mestre.
-  const masterRows = await prisma.masterRow.findMany({
-    where: { sam },
-    orderBy: { ordem: "asc" },
-  });
-  const buffer = await buildPreliminarWorkbook(mes, masterRows);
+  const buffer = await buildPreliminarWorkbook(mes, sam);
   const filename = `previsao_preliminar_${samSlug(sam).toLowerCase()}_${mes}.xlsx`;
 
   return new Response(Uint8Array.from(buffer), {

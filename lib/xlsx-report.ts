@@ -1,9 +1,9 @@
-// Geração da planilha final — portada do dashboard publicado, que produz
-// QUATRO abas com ExcelJS:
+// Geração da planilha final — CINCO abas, com ExcelJS:
 //   1. <AAAAMM>        — dados linha a linha, na ordem exata da planilha mestre
 //   2. RESUMO          — consolidado por SKU (geral e por estado)
 //   3. RESUMO POR SAM  — o mesmo, quebrado por SAM
-//   4. CONSOLIDADO     — visão financeira trimestral estilizada (Vendas Públicas)
+//   4. CALIBRAÇÃO      — pedidos lançados manualmente na calibração
+//   5. CONSOLIDADO     — visão financeira trimestral estilizada (Vendas Públicas)
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/prisma";
 import { rowKey as buildRowKey, mesLabel } from "@/lib/mes";
@@ -110,6 +110,23 @@ function fatOf(data: MesData, r: MasterRowLite): FaturaLineValue | undefined {
   return data.faturamento.get(r.sam)?.get(buildRowKey(r));
 }
 
+/**
+ * Agrupa as linhas por uma chave, em uma passada. As abas de resumo cruzam
+ * SKU × UF × SAM; sem índice, cada combinação varria as ~3 mil linhas de novo.
+ */
+function agrupar<T>(rows: T[], chave: (r: T) => string): Map<string, T[]> {
+  const m = new Map<string, T[]>();
+  for (const r of rows) {
+    const k = chave(r);
+    const arr = m.get(k);
+    if (arr) arr.push(r);
+    else m.set(k, [r]);
+  }
+  return m;
+}
+
+const VAZIO: MasterRowLite[] = [];
+
 /** Soma SE / MM / FATURADO (em unidades) para um conjunto de linhas da planilha. */
 function totais(rows: MasterRowLite[], data: MesData) {
   let se = 0,
@@ -159,9 +176,12 @@ export function buildResumoRows(masterRows: MasterRowLite[], mes: string, data: 
   out.push(["Estado:", "Todos", "", ""]);
   out.push(["", "", "", ""]);
   out.push(["CONSOLIDADO GERAL — TODOS OS ESTADOS", "", "", ""]);
+  const porSku = agrupar(masterRows, (r) => r.sku);
+  const porSkuUf = agrupar(masterRows, (r) => `${r.sku}|${r.uf}`);
+
   out.push(["SKU", "SE (previsão inicial)", "MM (ajuste dia 15)", "FATURADO (confirmado)"]);
   for (const sku of skus) {
-    const t = totais(masterRows.filter((r) => r.sku === sku), data);
+    const t = totais(porSku.get(sku) ?? VAZIO, data);
     out.push([sku, t.se, t.mm, t.fat]);
   }
   out.push(["", "", "", ""]);
@@ -170,7 +190,7 @@ export function buildResumoRows(masterRows: MasterRowLite[], mes: string, data: 
   for (const sku of skus) {
     for (const uf of ufs) {
       // estado sem conta cadastrada para o SKU sai zerado (igual ao original)
-      const t = totais(masterRows.filter((r) => r.sku === sku && r.uf === uf), data);
+      const t = totais(porSkuUf.get(`${sku}|${uf}`) ?? VAZIO, data);
       out.push([sku, uf, t.se, t.mm, t.fat]);
     }
   }
@@ -190,17 +210,23 @@ export function buildResumoPorSamRows(masterRows: MasterRowLite[], mes: string, 
   out.push(["", "", "", "", "", ""]);
   out.push(["SAM", "SKU", "UF", "SE (previsão inicial)", "MM (ajuste dia 15)", "FATURADO (confirmado)"]);
 
+  // Separador "|" (e não espaço): nomes de SAM e SKU contêm espaços, então uma
+  // chave composta por espaço poderia colidir entre combinações diferentes.
+  const porSam = agrupar(masterRows, (r) => r.sam);
+  const porSamSku = agrupar(masterRows, (r) => `${r.sam}|${r.sku}`);
+  const porSamSkuUf = agrupar(masterRows, (r) => `${r.sam}|${r.sku}|${r.uf}`);
+
   for (const sam of samsOrdenados) {
-    const rowsDoSam = masterRows.filter((r) => r.sam === sam);
+    const rowsDoSam = porSam.get(sam) ?? VAZIO;
     const skusDoSam = [...new Set(rowsDoSam.map((r) => r.sku))].sort((a, b) =>
       a.localeCompare(b, "pt-BR")
     );
     for (const sku of skusDoSam) {
-      const ufsDoSkuSam = [...new Set(rowsDoSam.filter((r) => r.sku === sku).map((r) => r.uf))]
+      const ufsDoSkuSam = [...new Set((porSamSku.get(`${sam}|${sku}`) ?? VAZIO).map((r) => r.uf))]
         .filter(Boolean)
         .sort((a, b) => a.localeCompare(b, "pt-BR"));
       for (const uf of ufsDoSkuSam) {
-        const t = totais(rowsDoSam.filter((r) => r.sku === sku && r.uf === uf), data);
+        const t = totais(porSamSkuUf.get(`${sam}|${sku}|${uf}`) ?? VAZIO, data);
         out.push([sam, sku, uf, t.se, t.mm, t.fat]);
       }
     }
@@ -230,10 +256,13 @@ export function buildCalibracaoRows(mes: string, data: MesData) {
 
 /* ---------------- ABA 5: CONSOLIDADO (estilizada) ---------------- */
 
-/** Soma SE / MM / FATURADO de um grupo de produto (que agrega várias SKUs). */
-function totaisGrupo(grupo: string, masterRows: MasterRowLite[], data: MesData) {
-  const skusDoGrupo = Object.keys(PRODUTO_INFO).filter((sku) => PRODUTO_INFO[sku].grupo === grupo);
-  return totais(masterRows.filter((r) => skusDoGrupo.includes(r.sku)), data);
+/**
+ * Soma SE / MM / FATURADO de um grupo de produto (que agrega várias SKUs).
+ * Recebe o índice já pronto — a aba percorre grupo × 3 meses, e refazer o
+ * filtro sobre a base inteira a cada célula era o gargalo da geração.
+ */
+function totaisGrupo(grupo: string, porGrupo: Map<string, MasterRowLite[]>, data: MesData) {
+  return totais(porGrupo.get(grupo) ?? VAZIO, data);
 }
 
 /** Converte número de coluna (1-based) na letra do Excel (1->A, 27->AA...). */
@@ -283,6 +312,8 @@ export function writeConsolidadoSheet(
 ) {
   const { q, meses } = quarterInfo(mesReferencia);
   const grupos = gruposOrdenados();
+  // Índice grupo → linhas, montado uma vez só: a aba percorre grupo × 3 meses.
+  const porGrupo = agrupar(masterRows, (r) => produtoInfo(r.sku).grupo);
   const ws = workbook.addWorksheet("CONSOLIDADO");
 
   function setCell(row: number, col: number, value: ExcelJS.CellValue, opts: CellOpts = {}) {
@@ -365,7 +396,7 @@ export function writeConsolidadoSheet(
 
     for (const mes of meses) {
       const data = dadosPorMes[mes];
-      const t = totaisGrupo(grupo, masterRows, data);
+      const t = totaisGrupo(grupo, porGrupo, data);
       const autoValores: Record<string, number> = {
         se: t.se,
         mm: t.mm,
@@ -463,21 +494,31 @@ function addPlainSheet(
   return ws;
 }
 
-/** Monta o workbook completo (5 abas) do relatório do mês. */
-export async function buildRelatorioWorkbook(
-  mes: string,
-  masterRows: MasterRowLite[]
-): Promise<Buffer> {
-  const { meses } = quarterInfo(mes);
+/**
+ * Só as colunas que a planilha usa. Evita trazer id/ordem de 3.629 linhas —
+ * o banco é remoto, então o custo aqui é rede, não CPU.
+ */
+const COLUNAS_MASTER = {
+  cnpj: true, sam: true, cliente: true, grupo: true, uf: true, sku: true, sap: true,
+} as const;
 
-  // O CONSOLIDADO precisa dos 3 meses do trimestre; o mês vigente é reaproveitado.
-  const dadosPorMes: Record<string, MesData> = {};
+/** Monta o workbook completo (5 abas) do relatório do mês. */
+export async function buildRelatorioWorkbook(mes: string): Promise<Buffer> {
+  const { meses } = quarterInfo(mes);
   const mesesNecessarios = [...new Set([mes, ...meses])];
-  await Promise.all(
-    mesesNecessarios.map(async (m) => {
-      dadosPorMes[m] = await loadMesData(m);
-    })
-  );
+
+  // A planilha mestre e os lançamentos dos 3 meses do trimestre são buscados
+  // em paralelo: são consultas independentes num banco remoto, e em série a
+  // latência de uma somava com a da outra.
+  const [masterRows, ...dadosDosMeses] = await Promise.all([
+    prisma.masterRow.findMany({ orderBy: { ordem: "asc" }, select: COLUNAS_MASTER }),
+    ...mesesNecessarios.map((m) => loadMesData(m)),
+  ]);
+
+  const dadosPorMes: Record<string, MesData> = {};
+  mesesNecessarios.forEach((m, i) => {
+    dadosPorMes[m] = dadosDosMeses[i];
+  });
   const data = dadosPorMes[mes];
 
   const workbook = new ExcelJS.Workbook();
@@ -498,11 +539,15 @@ export async function buildRelatorioWorkbook(
 }
 
 /** Planilha preliminar de um SAM: só a aba de dados das linhas dele. */
-export async function buildPreliminarWorkbook(
-  mes: string,
-  masterRows: MasterRowLite[]
-): Promise<Buffer> {
-  const data = await loadMesData(mes);
+export async function buildPreliminarWorkbook(mes: string, sam: string): Promise<Buffer> {
+  const [masterRows, data] = await Promise.all([
+    prisma.masterRow.findMany({
+      where: { sam },
+      orderBy: { ordem: "asc" },
+      select: COLUNAS_MASTER,
+    }),
+    loadMesData(mes),
+  ]);
   const workbook = new ExcelJS.Workbook();
   addPlainSheet(workbook, mes.slice(0, 31), buildDadosRows(masterRows, mes, data), [18, 26, 34, 10, 6, 32, 20, 11, 11, 11, 11, 11]);
   const buf = await workbook.xlsx.writeBuffer();

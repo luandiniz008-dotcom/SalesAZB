@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { apiUser } from "@/lib/dal";
+import { getOrCreateSettings } from "@/lib/settings";
 
 function canAccessSam(user: { role: string; samName: string | null }, sam: string) {
   return user.role === "ADMIN" || user.samName === sam;
@@ -58,15 +59,25 @@ export async function PUT(req: Request) {
     return Response.json({ error: "Dados de previsão inválidos." }, { status: 400 });
   }
 
+  // O SAM só escreve na etapa que o admin liberou — quem destrava SE e MM ao
+  // mesmo tempo é o administrador. Na etapa SE, os campos de MM enviados pelo
+  // cliente são ignorados (preserva o que já está gravado) em vez de recusar o
+  // salvamento inteiro, já que o cliente sempre envia a linha completa.
+  const settings = await getOrCreateSettings();
+  const somenteSE = user.role !== "ADMIN" && settings.faseAtiva === "SE";
+
   const entries = Object.entries(parsed.data.rows);
   await prisma.$transaction(
-    entries.map(([rowKey, line]) =>
-      prisma.forecastLine.upsert({
+    entries.map(([rowKey, line]) => {
+      const dados = somenteSE
+        ? { se: line.se, riscoSE: line.riscoSE }
+        : { se: line.se, riscoSE: line.riscoSE, mm: line.mm, riscoMM: line.riscoMM };
+      return prisma.forecastLine.upsert({
         where: { sam_mes_rowKey: { sam, mes, rowKey } },
-        create: { sam, mes, rowKey, ...line },
-        update: { ...line },
-      })
-    )
+        create: { sam, mes, rowKey, ...dados },
+        update: dados,
+      });
+    })
   );
 
   return Response.json({ ok: true, atualizadoEm: new Date().toISOString() });

@@ -176,48 +176,57 @@ export function ConsolidadoView({ isAdmin }: { isAdmin: boolean }) {
         </div>
       </div>
 
-      {isAdmin && (
-        <div className="panel" style={{ marginBottom: 20 }}>
-          {data.seCompleto ? (
-            <div style={{ fontSize: 13, color: "#137A45", fontWeight: 700, marginBottom: 8 }}>
-              Todos os SAMs concluíram a previsão SE de {mesLabel(mes)}. O relatório SE já pode ser gerado.
-            </div>
-          ) : (
-            <div className="gate-warning" style={{ marginBottom: 8 }}>
-              O relatório SE só é liberado quando todos os SAMs concluírem a previsão SE de {mesLabel(mes)}.
-              <br />
-              Pendentes ({pendentesSE.length}): {pendentesSE.join(", ")}
-            </div>
+      <div className="panel" style={{ marginBottom: 20 }}>
+        {/* Relatórios oficiais SE e MM: só o administrador gera, e só quando
+            todos os SAMs concluírem a etapa. A prévia é liberada para todos. */}
+        {isAdmin && (
+          <>
+            {data.seCompleto ? (
+              <div style={{ fontSize: 13, color: "#137A45", fontWeight: 700, marginBottom: 8 }}>
+                Todos os SAMs concluíram a previsão SE de {mesLabel(mes)}. O relatório SE já pode ser gerado.
+              </div>
+            ) : (
+              <div className="gate-warning" style={{ marginBottom: 8 }}>
+                O relatório SE só é liberado quando todos os SAMs concluírem a previsão SE de {mesLabel(mes)}.
+                <br />
+                Pendentes ({pendentesSE.length}): {pendentesSE.join(", ")}
+              </div>
+            )}
+            {data.mmCompleto ? (
+              <div style={{ fontSize: 13, color: "#137A45", fontWeight: 700, marginBottom: 8 }}>
+                Todos os SAMs concluíram a previsão MM de {mesLabel(mes)}. O relatório MM já pode ser gerado.
+              </div>
+            ) : (
+              <div className="gate-warning">
+                O relatório MM só é liberado quando todos os SAMs concluírem a previsão MM de {mesLabel(mes)}.
+                <br />
+                Pendentes ({pendentesMM.length}): {pendentesMM.join(", ")}
+              </div>
+            )}
+          </>
+        )}
+        <div className="actions">
+          {isAdmin && (
+            <>
+              <button className="btn accent" disabled={!data.seCompleto || generating !== null} onClick={() => gerar("SE")}>
+                {generating === "SE" ? "Gerando..." : "Gerar relatório SE"}
+              </button>
+              <button className="btn accent" disabled={!data.mmCompleto || generating !== null} onClick={() => gerar("MM")}>
+                {generating === "MM" ? "Gerando..." : "Gerar relatório MM"}
+              </button>
+            </>
           )}
-          {data.mmCompleto ? (
-            <div style={{ fontSize: 13, color: "#137A45", fontWeight: 700, marginBottom: 8 }}>
-              Todos os SAMs concluíram a previsão MM de {mesLabel(mes)}. O relatório MM já pode ser gerado.
-            </div>
-          ) : (
-            <div className="gate-warning">
-              O relatório MM só é liberado quando todos os SAMs concluírem a previsão MM de {mesLabel(mes)}.
-              <br />
-              Pendentes ({pendentesMM.length}): {pendentesMM.join(", ")}
-            </div>
-          )}
-          <div className="actions">
-            <button className="btn accent" disabled={!data.seCompleto || generating !== null} onClick={() => gerar("SE")}>
-              {generating === "SE" ? "Gerando..." : "Gerar relatório SE"}
-            </button>
-            <button className="btn accent" disabled={!data.mmCompleto || generating !== null} onClick={() => gerar("MM")}>
-              {generating === "MM" ? "Gerando..." : "Gerar relatório MM"}
-            </button>
-            <button className="btn ghost" disabled={generating !== null} onClick={() => gerar("PARCIAL")}>
-              {generating === "PARCIAL" ? "Gerando..." : "Gerar prévia (parcial)"}
-            </button>
-          </div>
-          <div className="footer-note">
-            Todos os relatórios saem com quatro abas: os dados linha a linha, RESUMO (por medicamento e
-            estado), RESUMO POR SAM e CONSOLIDADO (visão financeira do trimestre). A prévia pode ser
-            gerada a qualquer momento, sem trava.
-          </div>
+          <button className="btn accent" disabled={generating !== null} onClick={() => gerar("PARCIAL")}>
+            {generating === "PARCIAL" ? "Gerando..." : "Gerar planilha prévia (parcial)"}
+          </button>
         </div>
-      )}
+        <div className="footer-note">
+          A planilha sai com cinco abas: os dados linha a linha, RESUMO (por medicamento e estado),
+          RESUMO POR SAM, CALIBRAÇÃO (pedidos manuais) e CONSOLIDADO (visão financeira do trimestre).
+          A <strong>prévia</strong> traz o que o time já computou até agora e pode ser gerada a
+          qualquer momento, sem trava.
+        </div>
+      </div>
 
       {isAdmin && (
         <div className="panel">
