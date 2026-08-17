@@ -7,7 +7,7 @@
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/prisma";
 import { rowKey as buildRowKey, mesLabel } from "@/lib/mes";
-import { PRODUTO_INFO, gruposOrdenados, quarterInfo } from "@/lib/produto";
+import { PRODUTO_INFO, gruposOrdenados, quarterInfo, produtoInfo } from "@/lib/produto";
 import { quantidadeFaturada, type FaturaLineValue } from "@/lib/faturamento";
 
 export type MasterRowLite = {
@@ -27,6 +27,10 @@ const EMPTY_LINE: ForecastLineValue = { se: 0, riscoSE: "Médio", mm: 0, riscoMM
 export type MesData = {
   forecast: Map<string, Map<string, ForecastLineValue>>;
   faturamento: Map<string, Map<string, FaturaLineValue>>;
+  // "A faturar" (calibração) agregado por GRUPO de produto. Vem por grupo, e não
+  // por linha da planilha mestre, porque a calibração aceita pedidos manuais —
+  // contas que não existem na mestre. O elo com o grupo é sempre o SKU.
+  aFaturarPorGrupo: Map<string, number>;
 };
 
 /**
@@ -35,9 +39,10 @@ export type MesData = {
  * storage do Claude); aqui é uma query só por tabela, então some a lentidão.
  */
 export async function loadMesData(mes: string): Promise<MesData> {
-  const [linhas, faturas] = await Promise.all([
+  const [linhas, faturas, calibracoes] = await Promise.all([
     prisma.forecastLine.findMany({ where: { mes } }),
     prisma.faturamentoLine.findMany({ where: { mes } }),
+    prisma.calibracaoLine.findMany({ where: { mes }, select: { sku: true, quantidade: true } }),
   ]);
 
   const forecast = new Map<string, Map<string, ForecastLineValue>>();
@@ -57,7 +62,13 @@ export async function loadMesData(mes: string): Promise<MesData> {
     faturamento.get(f.sam)!.set(f.rowKey, { status: f.status, quantidade: f.quantidade });
   }
 
-  return { forecast, faturamento };
+  const aFaturarPorGrupo = new Map<string, number>();
+  for (const c of calibracoes) {
+    const grupo = produtoInfo(c.sku).grupo;
+    aFaturarPorGrupo.set(grupo, (aFaturarPorGrupo.get(grupo) ?? 0) + (c.quantidade || 0));
+  }
+
+  return { forecast, faturamento, aFaturarPorGrupo };
 }
 
 function lineOf(data: MesData, r: MasterRowLite): ForecastLineValue {
@@ -240,7 +251,9 @@ export function writeConsolidadoSheet(
     { key: "se", label: "Previsão SE", color: COR.se, manual: false },
     { key: "mm", label: "Previsão MM", color: COR.mm, manual: false },
     { key: "totalEmCasa", label: "Total em casa", color: COR.totalEmCasa, manual: false, formula: true },
-    { key: "aFaturar", label: "A faturar", color: COR.aFaturar, manual: true },
+    // "A faturar" vem da etapa de Calibração (pedidos em casa ainda não
+    // faturados) — deixou de ser preenchimento manual na planilha.
+    { key: "aFaturar", label: "A faturar", color: COR.aFaturar, manual: false },
     { key: "faturado", label: "Faturado", color: COR.faturado, manual: false },
   ] as const;
 
@@ -301,7 +314,12 @@ export function writeConsolidadoSheet(
     for (const mes of meses) {
       const data = dadosPorMes[mes];
       const t = totaisGrupo(grupo, masterRows, data);
-      const autoValores: Record<string, number> = { se: t.se, mm: t.mm, faturado: t.fat };
+      const autoValores: Record<string, number> = {
+        se: t.se,
+        mm: t.mm,
+        faturado: t.fat,
+        aFaturar: data.aFaturarPorGrupo.get(grupo) ?? 0,
+      };
 
       // Endereços das células "Und" deste mês, calculados ANTES de escrever as
       // células. O dashboard original resolvia isso dentro do próprio laço, mas
@@ -365,7 +383,7 @@ export function writeConsolidadoSheet(
   setCell(
     r,
     1,
-    "Budget, RBU2 e A faturar (fundo amarelo claro) são preenchidos manualmente aqui na planilha. SE, MM e Faturado vêm da previsão dos SAMs. Total em casa e as colunas U$ calculam sozinhas por fórmula.",
+    "Budget e RBU2 (fundo amarelo claro) são preenchidos manualmente aqui na planilha. SE, MM, A faturar e Faturado vêm do dashboard: SE/MM da previsão dos SAMs, A faturar da calibração (pedidos em casa ainda não faturados) e Faturado da confirmação de faturamento. Total em casa e as colunas U$ calculam sozinhas por fórmula.",
     { fill: COR.branco, font: { italic: true, size: 9 }, alignment: { horizontal: "left" }, noBorder: true }
   );
 

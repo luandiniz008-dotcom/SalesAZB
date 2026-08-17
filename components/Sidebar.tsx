@@ -93,6 +93,9 @@ export function Sidebar({ user }: { user: SessionUser }) {
         <Link href="/faturamento" className={pathname?.startsWith("/faturamento") ? "active" : ""}>
           Confirmação de faturamento
         </Link>
+        <Link href="/calibracao" className={pathname?.startsWith("/calibracao") ? "active" : ""}>
+          Calibração
+        </Link>
         <Link href="/consolidado" className={pathname?.startsWith("/consolidado") ? "active" : ""}>
           Painel consolidado
         </Link>

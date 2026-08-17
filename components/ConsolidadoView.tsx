@@ -14,11 +14,14 @@ type SamStatus = {
   concluidoSE: boolean;
   concluidoMM: boolean;
   faturamentoConcluido: boolean;
+  aFaturar: number;
+  calibradoEm: string | null;
 };
 type ConsolidadoData = {
   statuses: SamStatus[];
   totalSE: number;
   totalMM: number;
+  totalAFaturar: number;
   concluidosSE: number;
   concluidosMM: number;
   confirmadosFat: number;
@@ -106,6 +109,7 @@ export function ConsolidadoView({ isAdmin }: { isAdmin: boolean }) {
         <div className="card"><div className="k">SAMs com MM concluído</div><div className="v">{data.concluidosMM}/{data.totalSams}</div></div>
         <div className="card"><div className="k">Total SE (previsão)</div><div className="v">{data.totalSE}</div></div>
         <div className="card"><div className="k">Total MM (ajuste)</div><div className="v">{data.totalMM}</div></div>
+        <div className="card"><div className="k">Total a faturar (calibração)</div><div className="v">{data.totalAFaturar}</div></div>
       </div>
 
       <div className="panel" style={{ marginBottom: 20 }}>
@@ -120,6 +124,33 @@ export function ConsolidadoView({ isAdmin }: { isAdmin: boolean }) {
                 <span className={`badge ${s.concluidoSE ? "done" : "pending"}`}>SE {s.concluidoSE ? "✓" : "…"}</span>
                 <span className={`badge ${s.concluidoMM ? "done" : "pending"}`}>MM {s.concluidoMM ? "✓" : "…"}</span>
               </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel-title">
+          Calibração (pedidos em casa a faturar) — total {data.totalAFaturar}
+        </div>
+        <div className="config-note">
+          Etapa contínua, sem conclusão: vale o que estiver salvo no momento da geração. Alimenta a
+          coluna <strong>A faturar</strong> da aba CONSOLIDADO.
+        </div>
+        <div>
+          {data.statuses.map((s) => (
+            <div className="sam-status-row" key={s.sam}>
+              <div>
+                {s.sam}{" "}
+                <span style={{ color: "var(--ink-soft)", fontSize: 12 }}>
+                  — a faturar: {s.aFaturar}
+                </span>
+              </div>
+              <span style={{ color: "var(--ink-soft)", fontSize: 12 }}>
+                {s.calibradoEm
+                  ? `atualizada em ${new Date(s.calibradoEm).toLocaleString("pt-BR")}`
+                  : "sem calibração"}
+              </span>
             </div>
           ))}
         </div>

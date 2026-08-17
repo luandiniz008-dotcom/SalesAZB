@@ -11,7 +11,11 @@ Fluxo do mês:
    SE e MM são concluídos de forma independente.
 3. Cada SAM confirma o **faturamento** do que foi previsto em MM
    (`Faturado` / `Não faturado` / `Faturado parcialmente` + quantidade).
-4. O admin gera os relatórios `.xlsx`. Os oficiais têm trava: o **SE** só libera
+4. Na **calibração** — etapa contínua, aberta o mês inteiro — o SAM informa os
+   pedidos que já estão **em casa mas ainda não faturados**. Pode incluir pedidos
+   manuais, de contas fora do painel dele (conta digitada livremente, produto
+   escolhido do catálogo).
+5. O admin gera os relatórios `.xlsx`. Os oficiais têm trava: o **SE** só libera
    quando todos concluírem o SE, e o **MM** quando todos concluírem o MM.
    A **prévia (PARCIAL)** pode ser gerada a qualquer momento.
 
@@ -26,9 +30,11 @@ Todo relatório sai com **quatro abas**:
 | `RESUMO POR SAM` | O mesmo, quebrado por SAM × SKU × UF |
 | `CONSOLIDADO` | Visão financeira do trimestre (BU, NETPRICE, Budget/RBU2/SE/MM/Total em casa/A faturar/Faturado), estilizada como a planilha "Vendas Públicas" |
 
-Na aba `CONSOLIDADO`, **Budget, RBU2 e "A faturar"** ficam em branco (fundo amarelo
-claro) para preenchimento manual no Excel; as colunas **U$** e **Total em casa**
-são fórmulas que se atualizam sozinhas.
+Na aba `CONSOLIDADO` só **Budget e RBU2** ficam em branco (fundo amarelo claro)
+para preenchimento manual no Excel. O resto vem do dashboard: **SE/MM** da
+previsão, **A faturar** da calibração e **Faturado** da confirmação de
+faturamento. As colunas **U$** e **Total em casa** (= A faturar + Faturado) são
+fórmulas que se atualizam sozinhas.
 
 > A ordem das linhas da aba de dados é garantida pela coluna `MasterRow.ordem`
 > — toda leitura que alimenta a exportação usa `orderBy: { ordem: 'asc' }`.
@@ -80,13 +86,15 @@ senha antes de acessar qualquer tela (o mesmo vale após um reset de senha).
 ## Estrutura
 
 - `app/` — rotas: `login`, `setup`, `change-password` e o grupo `(app)`
-  (`lancamento`, `faturamento`, `consolidado`, `config`, `admin/usuarios`),
-  protegido por `proxy.ts` + `lib/dal.ts`.
-- `app/api/` — route handlers (master, forecast, status, faturamento, config,
-  consolidado, export, files, admin/users, auth).
-- `components/` — UI (wizard de lançamento, faturamento, sidebar, painéis).
+  (`lancamento`, `faturamento`, `calibracao`, `consolidado`, `config`,
+  `admin/usuarios`), protegido por `proxy.ts` + `lib/dal.ts`.
+- `app/api/` — route handlers (master, forecast, status, faturamento,
+  calibracao, config, consolidado, export, files, admin/users, auth).
+- `components/` — UI (wizard de lançamento, faturamento, calibração, sidebar,
+  painéis).
 - `lib/` — Prisma client, DAL de autorização, geração/import de `.xlsx`,
-  metadados de produto (`produto.ts`), regras de faturamento, validação (zod).
+  metadados de produto (`produto.ts`), regras de faturamento e calibração,
+  validação (zod).
 - `prisma/schema.prisma` — modelo de dados; `prisma/seed.ts` +
   `prisma/seed-data.json` — carga inicial da planilha mestre (3629 linhas).
 

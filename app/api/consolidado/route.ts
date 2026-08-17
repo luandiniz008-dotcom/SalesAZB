@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     .map((r) => r.sam)
     .sort((a, b) => a.localeCompare(b, "pt-BR"));
 
-  const [sums, statuses, fatStatuses] = await Promise.all([
+  const [sums, statuses, fatStatuses, calibSums] = await Promise.all([
     prisma.forecastLine.groupBy({
       by: ["sam"],
       where: { mes, sam: { in: sams } },
@@ -23,24 +23,37 @@ export async function GET(req: Request) {
     }),
     prisma.forecastStatus.findMany({ where: { mes, sam: { in: sams } } }),
     prisma.faturamentoStatus.findMany({ where: { mes, sam: { in: sams } } }),
+    // Calibração é etapa contínua (sem conclusão): o painel mostra o total em
+    // casa e quando foi a última atualização, em vez de um status concluído.
+    prisma.calibracaoLine.groupBy({
+      by: ["sam"],
+      where: { mes, sam: { in: sams } },
+      _sum: { quantidade: true },
+      _max: { updatedAt: true },
+    }),
   ]);
   const sumBySam = new Map(sums.map((s) => [s.sam, s._sum]));
   const statusBySam = new Map(statuses.map((s) => [s.sam, s]));
   const fatBySam = new Map(fatStatuses.map((s) => [s.sam, s]));
+  const calibBySam = new Map(calibSums.map((s) => [s.sam, s]));
 
   let totalSE = 0;
   let totalMM = 0;
   let concluidosSE = 0;
   let concluidosMM = 0;
   let confirmadosFat = 0;
+  let totalAFaturar = 0;
 
   const result = sams.map((sam) => {
     const se = sumBySam.get(sam)?.se ?? 0;
     const mm = sumBySam.get(sam)?.mm ?? 0;
     const st = statusBySam.get(sam);
     const fat = fatBySam.get(sam);
+    const calib = calibBySam.get(sam);
+    const aFaturar = calib?._sum.quantidade ?? 0;
     totalSE += se;
     totalMM += mm;
+    totalAFaturar += aFaturar;
     if (st?.concluidoSE) concluidosSE++;
     if (st?.concluidoMM) concluidosMM++;
     if (fat?.concluido) confirmadosFat++;
@@ -51,6 +64,8 @@ export async function GET(req: Request) {
       concluidoSE: st?.concluidoSE ?? false,
       concluidoMM: st?.concluidoMM ?? false,
       faturamentoConcluido: fat?.concluido ?? false,
+      aFaturar,
+      calibradoEm: calib?._max.updatedAt ?? null,
     };
   });
 
@@ -60,6 +75,7 @@ export async function GET(req: Request) {
     statuses: result,
     totalSE,
     totalMM,
+    totalAFaturar,
     concluidosSE,
     concluidosMM,
     confirmadosFat,

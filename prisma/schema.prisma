@@ -113,6 +113,35 @@ enum FaturaStatus {
   FATURADO_PARCIALMENTE
 }
 
+// Calibração: pedidos que já estão "em casa" (colocados pelo cliente) mas ainda
+// NÃO foram faturados. É uma etapa contínua — fica aberta o mês inteiro, sem
+// conclusão e sem travar relatório.
+//
+// A soma daqui alimenta a coluna "A faturar" da aba CONSOLIDADO, e é por isso
+// que `sku` é sempre gravado: é ele que liga o pedido ao grupo de produto
+// (Calquence, Tagrisso...) na visão financeira.
+model CalibracaoLine {
+  id     String @id @default(cuid())
+  sam    String
+  mes    String
+  // Linhas da planilha mestre usam o mesmo rowKey das demais etapas
+  // (cnpj|sku|sap). Pedidos manuais usam "manual:<id>", já que não existem
+  // na mestre — o SAM digita a conta e escolhe o produto.
+  rowKey String
+
+  sku        String
+  cliente    String
+  uf         String  @default("")
+  manual     Boolean @default(false)
+  quantidade Int     @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([sam, mes, rowKey])
+  @@index([mes])
+  @@index([sam, mes])
+}
+
 // Status de conclusão da confirmação de faturamento de um SAM num mês.
 model FaturamentoStatus {
   id        String    @id @default(cuid())
