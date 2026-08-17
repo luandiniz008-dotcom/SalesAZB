@@ -28,6 +28,7 @@ Todo relatório sai com **quatro abas**:
 | `<AAAAMM>` | Dados linha a linha, **na ordem exata da planilha mestre** |
 | `RESUMO` | Consolidado por SKU — geral e por estado (SE / MM / Faturado) |
 | `RESUMO POR SAM` | O mesmo, quebrado por SAM × SKU × UF |
+| `CALIBRAÇÃO` | Pedidos lançados **manualmente** na calibração (SAM / produto / quantidade / conta / estado) |
 | `CONSOLIDADO` | Visão financeira do trimestre (BU, NETPRICE, Budget/RBU2/SE/MM/Total em casa/A faturar/Faturado), estilizada como a planilha "Vendas Públicas" |
 
 Na aba `CONSOLIDADO` só **Budget e RBU2** ficam em branco (fundo amarelo claro)
@@ -39,6 +40,11 @@ fórmulas que se atualizam sozinhas.
 > A ordem das linhas da aba de dados é garantida pela coluna `MasterRow.ordem`
 > — toda leitura que alimenta a exportação usa `orderBy: { ordem: 'asc' }`.
 > Sem isso o Postgres devolve em ordem arbitrária e a planilha sai embaralhada.
+
+**Itens fora de escopo.** `lib/hidden-sams.ts` e `lib/hidden-produtos.ts` listam
+SAMs e SKUs que somem do dashboard e das abas de agregação, mas cujas linhas
+**continuam na aba de dados** — é o que mantém o arquivo idêntico, linha a
+linha, à planilha mestre importada.
 
 ## Stack
 

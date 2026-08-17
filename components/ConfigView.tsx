@@ -14,6 +14,7 @@ type Counts = {
   totalSamsAll: number;
   totalRowsAll: number;
   hiddenPresentes: string[];
+  skusOcultos: string[];
 };
 
 export function ConfigView() {
@@ -166,6 +167,13 @@ export function ConfigView() {
         {counts && counts.totalSamsAll > counts.samCount && (
           <div className="footer-note" style={{ marginTop: 6 }}>
             A base completa tem {counts.totalSamsAll} SAMs e {counts.totalRowsAll} linhas ao todo. {counts.hiddenPresentes.length} SAM(s) ficam ocultos no dashboard ({counts.hiddenPresentes.join(", ")}), mas continuam aparecendo normalmente na planilha final gerada.
+          </div>
+        )}
+        {counts && counts.skusOcultos?.length > 0 && (
+          <div className="footer-note" style={{ marginTop: 6 }}>
+            {counts.skusOcultos.length} produto(s) estão fora do escopo e não aparecem nas listas do
+            dashboard nem nas abas de resumo ({counts.skusOcultos.join(", ")}). As linhas deles
+            continuam na aba de dados da planilha, para o arquivo seguir idêntico à planilha mestre.
           </div>
         )}
       </div>

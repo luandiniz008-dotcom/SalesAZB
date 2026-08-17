@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { rowKey as buildRowKey, mesLabel } from "@/lib/mes";
 import { PRODUTO_INFO, gruposOrdenados, quarterInfo, produtoInfo } from "@/lib/produto";
 import { quantidadeFaturada, type FaturaLineValue } from "@/lib/faturamento";
+import { filterVisibleSkus, isHiddenSku } from "@/lib/hidden-produtos";
 
 export type MasterRowLite = {
   cnpj: string;
@@ -24,6 +25,14 @@ export type ForecastLineValue = { se: number; riscoSE: string; mm: number; risco
 
 const EMPTY_LINE: ForecastLineValue = { se: 0, riscoSE: "Médio", mm: 0, riscoMM: "Médio" };
 
+export type CalibracaoManual = {
+  sam: string;
+  sku: string;
+  cliente: string;
+  uf: string;
+  quantidade: number;
+};
+
 export type MesData = {
   forecast: Map<string, Map<string, ForecastLineValue>>;
   faturamento: Map<string, Map<string, FaturaLineValue>>;
@@ -31,6 +40,9 @@ export type MesData = {
   // por linha da planilha mestre, porque a calibração aceita pedidos manuais —
   // contas que não existem na mestre. O elo com o grupo é sempre o SKU.
   aFaturarPorGrupo: Map<string, number>;
+  // Só os pedidos MANUAIS da calibração — contas digitadas pelo SAM, que não
+  // existem na planilha mestre. Alimentam a aba CALIBRAÇÃO.
+  calibracaoManuais: CalibracaoManual[];
 };
 
 /**
@@ -42,7 +54,10 @@ export async function loadMesData(mes: string): Promise<MesData> {
   const [linhas, faturas, calibracoes] = await Promise.all([
     prisma.forecastLine.findMany({ where: { mes } }),
     prisma.faturamentoLine.findMany({ where: { mes } }),
-    prisma.calibracaoLine.findMany({ where: { mes }, select: { sku: true, quantidade: true } }),
+    prisma.calibracaoLine.findMany({
+      where: { mes },
+      select: { sam: true, sku: true, cliente: true, uf: true, quantidade: true, manual: true },
+    }),
   ]);
 
   const forecast = new Map<string, Map<string, ForecastLineValue>>();
@@ -64,11 +79,28 @@ export async function loadMesData(mes: string): Promise<MesData> {
 
   const aFaturarPorGrupo = new Map<string, number>();
   for (const c of calibracoes) {
+    if (isHiddenSku(c.sku)) continue; // produto fora do escopo não entra na agregação
     const grupo = produtoInfo(c.sku).grupo;
     aFaturarPorGrupo.set(grupo, (aFaturarPorGrupo.get(grupo) ?? 0) + (c.quantidade || 0));
   }
 
-  return { forecast, faturamento, aFaturarPorGrupo };
+  const calibracaoManuais = calibracoes
+    .filter((c) => c.manual && !isHiddenSku(c.sku))
+    .map((c) => ({
+      sam: c.sam,
+      sku: c.sku,
+      cliente: c.cliente,
+      uf: c.uf,
+      quantidade: c.quantidade,
+    }))
+    .sort(
+      (a, b) =>
+        a.sam.localeCompare(b.sam, "pt-BR") ||
+        a.sku.localeCompare(b.sku, "pt-BR") ||
+        a.cliente.localeCompare(b.cliente, "pt-BR")
+    );
+
+  return { forecast, faturamento, aFaturarPorGrupo, calibracaoManuais };
 }
 
 function lineOf(data: MesData, r: MasterRowLite): ForecastLineValue {
@@ -176,7 +208,27 @@ export function buildResumoPorSamRows(masterRows: MasterRowLite[], mes: string, 
   return out;
 }
 
-/* ---------------- ABA 4: CONSOLIDADO (estilizada) ---------------- */
+/* ---------------- ABA 4: CALIBRAÇÃO ---------------- */
+
+/**
+ * Pedidos que o SAM lançou MANUALMENTE na calibração — contas que não existem
+ * na planilha mestre. Os pedidos calibrados sobre linhas da mestre já aparecem
+ * na aba de dados, então aqui só entram os manuais.
+ */
+export function buildCalibracaoRows(mes: string, data: MesData) {
+  const out: (string | number)[][] = [];
+  out.push(["CALIBRAÇÃO — PEDIDOS MANUAIS", "", "", "", ""]);
+  out.push([`Competência: ${mesLabel(mes)} (${mes})`, "", "", "", ""]);
+  out.push(["", "", "", "", ""]);
+  out.push(["SAM", "PRODUTO", "QUANTIDADE", "CONTA", "ESTADO"]);
+
+  for (const c of data.calibracaoManuais) {
+    out.push([c.sam, c.sku, c.quantidade, c.cliente, c.uf]);
+  }
+  return out;
+}
+
+/* ---------------- ABA 5: CONSOLIDADO (estilizada) ---------------- */
 
 /** Soma SE / MM / FATURADO de um grupo de produto (que agrega várias SKUs). */
 function totaisGrupo(grupo: string, masterRows: MasterRowLite[], data: MesData) {
@@ -411,7 +463,7 @@ function addPlainSheet(
   return ws;
 }
 
-/** Monta o workbook completo (4 abas) do relatório do mês. */
+/** Monta o workbook completo (5 abas) do relatório do mês. */
 export async function buildRelatorioWorkbook(
   mes: string,
   masterRows: MasterRowLite[]
@@ -430,10 +482,16 @@ export async function buildRelatorioWorkbook(
 
   const workbook = new ExcelJS.Workbook();
 
+  // A aba de dados usa a base COMPLETA — é o que mantém a planilha idêntica,
+  // linha a linha, à planilha mestre. As abas de agregação usam a base sem os
+  // produtos fora do escopo (hidden-produtos.ts).
+  const linhasAgregacao = filterVisibleSkus(masterRows);
+
   addPlainSheet(workbook, mes.slice(0, 31), buildDadosRows(masterRows, mes, data), [18, 26, 34, 10, 6, 32, 20, 11, 11, 11, 11, 11]);
-  addPlainSheet(workbook, "RESUMO", buildResumoRows(masterRows, mes, data), [34, 8, 20, 20, 20]);
-  addPlainSheet(workbook, "RESUMO POR SAM", buildResumoPorSamRows(masterRows, mes, data), [26, 34, 8, 20, 20, 20]);
-  writeConsolidadoSheet(workbook, mes, masterRows, dadosPorMes);
+  addPlainSheet(workbook, "RESUMO", buildResumoRows(linhasAgregacao, mes, data), [34, 8, 20, 20, 20]);
+  addPlainSheet(workbook, "RESUMO POR SAM", buildResumoPorSamRows(linhasAgregacao, mes, data), [26, 34, 8, 20, 20, 20]);
+  addPlainSheet(workbook, "CALIBRAÇÃO", buildCalibracaoRows(mes, data), [26, 34, 13, 34, 9]);
+  writeConsolidadoSheet(workbook, mes, linhasAgregacao, dadosPorMes);
 
   const buf = await workbook.xlsx.writeBuffer();
   return Buffer.from(buf);

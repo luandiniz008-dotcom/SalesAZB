@@ -1,6 +1,7 @@
 // Contas (linhas cnpj x sku) de um SAM para um medicamento específico.
 import { prisma } from "@/lib/prisma";
 import { apiUser } from "@/lib/dal";
+import { filterVisibleSkus } from "@/lib/hidden-produtos";
 
 export async function GET(req: Request) {
   const { user, error } = await apiUser();
@@ -25,5 +26,6 @@ export async function GET(req: Request) {
     select: { cnpj: true, cliente: true, grupo: true, uf: true, sku: true, sap: true },
     orderBy: { ordem: "asc" },
   });
-  return Response.json({ contas });
+  // Produtos fora do escopo não aparecem em nenhuma tela do dashboard.
+  return Response.json({ contas: filterVisibleSkus(contas) });
 }
