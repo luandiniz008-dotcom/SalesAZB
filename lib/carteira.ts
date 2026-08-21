@@ -32,8 +32,23 @@ const RESTRICAO_POR_SAM: Record<string, Linha> = {
   "ADRIANO DA ROSA ARAUJO": "LINHA_REGIS",
 };
 
+/**
+ * Produtos que nenhum SAM previsiona. Somem APENAS do seletor de lançamento —
+ * não entram na lista de produtos fora de escopo (lib/hidden-produtos.ts) de
+ * propósito, porque aquela também os removeria das abas RESUMO, RESUMO POR SAM
+ * e CONSOLIDADO. Aqui a planilha final não muda em nada: as linhas continuam na
+ * aba de dados e nas agregações, apenas saem zeradas por ninguém previsionar.
+ */
+const PRODUTOS_SEM_PREVISAO = ["TRUQAP", "IMJUDO"];
+
+export function ehProdutoSemPrevisao(sku: string): boolean {
+  const s = sku.toUpperCase();
+  return PRODUTOS_SEM_PREVISAO.some((p) => s.startsWith(p));
+}
+
 /** O SAM atende esse produto? */
 export function samAtendeProduto(sam: string, sku: string): boolean {
+  if (ehProdutoSemPrevisao(sku)) return false;
   const linha = RESTRICAO_POR_SAM[sam];
   if (!linha) return true;
   return linha === "LINHA_SUSANE" ? ehProdutoLinhaSusane(sku) : !ehProdutoLinhaSusane(sku);
@@ -41,6 +56,5 @@ export function samAtendeProduto(sam: string, sku: string): boolean {
 
 /** Filtra uma lista de linhas da mestre pelos produtos que o SAM atende. */
 export function filtrarProdutosDoSam<T extends { sku: string }>(sam: string, rows: T[]): T[] {
-  if (!RESTRICAO_POR_SAM[sam]) return rows;
   return rows.filter((r) => samAtendeProduto(sam, r.sku));
 }
