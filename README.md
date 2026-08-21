@@ -41,6 +41,13 @@ fórmulas que se atualizam sozinhas.
 > — toda leitura que alimenta a exportação usa `orderBy: { ordem: 'asc' }`.
 > Sem isso o Postgres devolve em ordem arbitrária e a planilha sai embaralhada.
 
+**Linha de produtos por SAM.** `lib/carteira.ts` define quais medicamentos cada
+SAM atende. Para a maioria isso vem da própria planilha (o SAM só vê os produtos
+da carteira dele). Fernanda e Adriano são exceção declarada: a carteira deles na
+planilha tem todos os produtos, mas atendem só uma linha — a Fernanda a mesma da
+Susane (R&I/CVRM) e o Adriano a mesma do Régis. É um filtro de **exibição**:
+nenhuma linha sai da planilha, as não atendidas apenas saem zeradas.
+
 **Itens fora de escopo.** `lib/hidden-sams.ts` e `lib/hidden-produtos.ts` listam
 SAMs e SKUs que somem do dashboard e das abas de agregação, mas cujas linhas
 **continuam na aba de dados** — é o que mantém o arquivo idêntico, linha a

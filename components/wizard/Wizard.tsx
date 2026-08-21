@@ -50,7 +50,7 @@ export function Wizard({ sam, onTrocarSam }: { sam: string; onTrocarSam?: () => 
     setLoading(true);
     try {
       const [skusData, contasData, forecastData, statusData] = await Promise.all([
-        apiFetch<{ skus: string[] }>("/api/master/skus"),
+        apiFetch<{ skus: string[] }>(`/api/master/skus?sam=${encodeURIComponent(sam)}`),
         apiFetch<{ contas: Conta[] }>(`/api/master/contas?sam=${encodeURIComponent(sam)}`),
         apiFetch<{ rows: Record<string, ForecastLineValue> }>(
           `/api/forecast?sam=${encodeURIComponent(sam)}&mes=${mes}`
