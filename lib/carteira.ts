@@ -39,7 +39,7 @@ const RESTRICAO_POR_SAM: Record<string, Linha> = {
  * e CONSOLIDADO. Aqui a planilha final não muda em nada: as linhas continuam na
  * aba de dados e nas agregações, apenas saem zeradas por ninguém previsionar.
  */
-const PRODUTOS_SEM_PREVISAO = ["TRUQAP", "IMJUDO"];
+const PRODUTOS_SEM_PREVISAO = ["TRUQAP", "IMJUDO", "SYNAGIS"];
 
 export function ehProdutoSemPrevisao(sku: string): boolean {
   const s = sku.toUpperCase();
