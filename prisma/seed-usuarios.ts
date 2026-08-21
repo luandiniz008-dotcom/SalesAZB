@@ -20,6 +20,7 @@ const CONTAS: Conta[] = [
   { nome: "Lis Regina Nicodemos", email: "lisregina.nicodemos@astrazeneca.com", role: "SAM", samName: "LIS REGINA NICODEMOS" },
   { nome: "Marcus Cavalcanti", email: "marcus.cavalcanti@astrazeneca.com", role: "ADMIN" },
   { nome: "Susane Tonelli", email: "susane.tonelli@astrazeneca.com", role: "SAM", samName: "SUSANE TONELLI" },
+  { nome: "Régis Gomes", email: "regis.gomes@astrazeneca.com", role: "SAM", samName: "RÉGIS GOMES" },
   { nome: "Cintia Dias", email: "cintia.dias@astrazeneca.com", role: "ADMIN" },
 ];
 
